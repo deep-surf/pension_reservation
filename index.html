@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>펜션 예약관리</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<style>
+  /* 설정: 아래 자바스크립트 맨 위의 API_URL 값을 배포한 웹앱 /exec 주소로 바꾸세요 */
+
+  :root{
+    --paper:#fbfbf8; --card:#ffffff; --ink:#20251f; --ink-soft:#5c6358;
+    --line:#e7e5dc; --line-strong:#d6d3c6;
+    --sage:#5b7553; --sage-deep:#3f5439; --sage-tint:#eef2ea;
+    --warn:#c0492f; --warn-tint:#fbeae5;
+    --hold:#b8860b; --cancel:#9a9a90;
+    --r-mindle:#e0a13a;  /* 민들레 */
+    --r-bong:#cf7488;    /* 봉숭아 */
+    --r-chae:#df8350;    /* 채송화 */
+    --r-suseon:#5a9d94;  /* 수선화 */
+    --shadow:0 1px 2px rgba(30,40,25,.05),0 8px 24px -16px rgba(30,40,25,.25);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:var(--paper); color:var(--ink); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding-bottom:env(safe-area-inset-bottom);
+  }
+  button{font-family:inherit; cursor:pointer}
+  input,select,textarea{font-family:inherit; font-size:16px}
+
+  /* ===== 로그인 ===== */
+  #gate{position:fixed; inset:0; background:var(--paper); display:flex;
+    align-items:center; justify-content:center; padding:24px; z-index:50}
+  .gate-card{width:100%; max-width:360px; text-align:center}
+  .gate-mark{font-size:34px; letter-spacing:-.02em}
+  .gate-mark b{color:var(--sage-deep); font-weight:800}
+  .gate-sub{color:var(--ink-soft); margin:6px 0 26px; font-size:14px}
+  .gate-card input{width:100%; padding:13px 14px; border:1px solid var(--line-strong);
+    border-radius:10px; background:var(--card); outline:none; text-align:center}
+  .gate-card input:focus{border-color:var(--sage)}
+  .gate-card button{width:100%; margin-top:10px; padding:13px; border:none; border-radius:10px;
+    background:var(--sage); color:#fff; font-weight:700; font-size:15px}
+  .gate-card button:disabled{opacity:.5}
+  .gate-err{color:var(--warn); font-size:13px; min-height:18px; margin-top:10px}
+
+  /* ===== 앱 셸 ===== */
+  #app{display:none; max-width:920px; margin:0 auto}
+  header.bar{position:sticky; top:0; z-index:20; background:rgba(251,251,248,.92);
+    backdrop-filter:saturate(1.4) blur(8px); border-bottom:1px solid var(--line);
+    padding:14px 16px calc(14px + env(safe-area-inset-top)); padding-top:calc(14px + env(safe-area-inset-top));
+    display:flex; align-items:center; gap:10px}
+  .brand{font-size:18px; font-weight:800; letter-spacing:-.02em; white-space:nowrap}
+  .brand span{color:var(--sage-deep)}
+  .bar-spacer{flex:1}
+  .icon-btn{border:1px solid var(--line-strong); background:var(--card); color:var(--ink-soft);
+    border-radius:9px; padding:8px 11px; font-size:13px; font-weight:600}
+  .icon-btn:hover{border-color:var(--sage)}
+
+  .controls{padding:14px 16px 4px; display:flex; flex-direction:column; gap:12px}
+  .monthnav{display:flex; align-items:center; gap:6px}
+  .monthnav button{width:38px; height:38px; border:1px solid var(--line-strong);
+    background:var(--card); border-radius:10px; font-size:18px; color:var(--ink); line-height:1}
+  .monthnav .label{flex:1; text-align:center; font-size:20px; font-weight:800; letter-spacing:-.01em}
+  .monthnav .today{width:auto; padding:0 12px; font-size:13px; font-weight:700; color:var(--sage-deep)}
+  .addbtn{border:none; background:var(--sage); color:#fff; font-weight:700; font-size:15px;
+    border-radius:11px; padding:12px; box-shadow:var(--shadow)}
+  .addbtn:hover{background:var(--sage-deep)}
+
+  .filters{display:flex; flex-wrap:wrap; gap:7px; align-items:center}
+  .chip{border:1px solid var(--line-strong); background:var(--card); border-radius:999px;
+    padding:6px 12px; font-size:13px; font-weight:600; color:var(--ink-soft); display:inline-flex;
+    align-items:center; gap:6px}
+  .chip .dot{width:9px; height:9px; border-radius:50%}
+  .chip.on{color:#fff; border-color:transparent}
+  .chip[data-room="민들레"] .dot{background:var(--r-mindle)} .chip[data-room="민들레"].on{background:var(--r-mindle)}
+  .chip[data-room="봉숭아"] .dot{background:var(--r-bong)}   .chip[data-room="봉숭아"].on{background:var(--r-bong)}
+  .chip[data-room="채송화"] .dot{background:var(--r-chae)}   .chip[data-room="채송화"].on{background:var(--r-chae)}
+  .chip[data-room="수선화"] .dot{background:var(--r-suseon)} .chip[data-room="수선화"].on{background:var(--r-suseon)}
+  .seg{display:inline-flex; border:1px solid var(--line-strong); border-radius:999px; overflow:hidden}
+  .seg button{border:none; background:var(--card); padding:6px 12px; font-size:13px; font-weight:600; color:var(--ink-soft)}
+  .seg button.on{background:var(--sage); color:#fff}
+
+  /* ===== 목록 ===== */
+  main{padding:6px 16px 90px}
+  .daygroup{margin-top:18px}
+  .dayhead{font-size:13px; font-weight:700; color:var(--ink-soft); margin:0 2px 8px;
+    display:flex; align-items:center; gap:8px}
+  .dayhead .wk{color:var(--cancel); font-weight:600}
+  .dayhead .sat{color:#3b6fb0} .dayhead .sun{color:#c0492f}
+
+  .resv{background:var(--card); border:1px solid var(--line); border-left-width:5px;
+    border-radius:var(--radius); padding:13px 14px; margin-bottom:10px; box-shadow:var(--shadow);
+    display:grid; grid-template-columns:1fr auto; gap:6px 10px}
+  .resv[data-room="민들레"]{border-left-color:var(--r-mindle)}
+  .resv[data-room="봉숭아"]{border-left-color:var(--r-bong)}
+  .resv[data-room="채송화"]{border-left-color:var(--r-chae)}
+  .resv[data-room="수선화"]{border-left-color:var(--r-suseon)}
+  .resv.cancelled{opacity:.55}
+  .resv.cancelled .who{text-decoration:line-through}
+  .r-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .roomtag{font-size:12px; font-weight:800; padding:2px 8px; border-radius:6px; color:#fff}
+  .roomtag[data-room="민들레"]{background:var(--r-mindle)}
+  .roomtag[data-room="봉숭아"]{background:var(--r-bong)}
+  .roomtag[data-room="채송화"]{background:var(--r-chae)}
+  .roomtag[data-room="수선화"]{background:var(--r-suseon)}
+  .who{font-size:16px; font-weight:700; letter-spacing:-.01em}
+  .badge{font-size:11px; font-weight:800; padding:2px 7px; border-radius:6px}
+  .badge.hold{background:#fbf3df; color:var(--hold)}
+  .badge.cancel{background:#efefea; color:var(--cancel)}
+  .badge.dup{background:var(--warn-tint); color:var(--warn); cursor:help}
+  .r-dates{font-size:14px; color:var(--ink-soft); font-variant-numeric:tabular-nums}
+  .r-dates b{color:var(--ink); font-weight:700}
+  .r-meta{grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:4px 14px; font-size:13px; color:var(--ink-soft)}
+  .r-meta .k{color:var(--cancel)}
+  .r-memo{grid-column:1 / -1; font-size:13px; background:var(--sage-tint); color:var(--sage-deep);
+    border-radius:8px; padding:7px 10px; margin-top:2px; white-space:pre-wrap}
+  .r-actions{grid-column:1 / -1; display:flex; gap:7px; margin-top:4px}
+  .r-actions button{flex:1; border:1px solid var(--line-strong); background:var(--card);
+    border-radius:9px; padding:8px; font-size:13px; font-weight:600; color:var(--ink-soft)}
+  .r-actions button:hover{border-color:var(--sage); color:var(--sage-deep)}
+  .r-actions .del:hover{border-color:var(--warn); color:var(--warn)}
+
+  .empty{text-align:center; color:var(--cancel); padding:48px 16px; font-size:14px}
+  .empty b{display:block; color:var(--ink-soft); font-size:16px; margin-bottom:4px}
+
+  /* ===== 보기 전환 ===== */
+  .viewseg button{flex:1; padding:9px 0; font-size:14px}
+  .viewseg.seg{display:flex; width:100%}
+
+  /* ===== 달력 뷰 (객실 격자) ===== */
+  #cal{display:none}
+  .cal-legend{display:flex; flex-wrap:wrap; gap:9px 14px; padding:2px 2px 12px; font-size:12px; color:var(--ink-soft)}
+  .cal-legend span{display:inline-flex; align-items:center; gap:5px}
+  .cal-legend i{width:12px; height:12px; border-radius:3px; display:inline-block}
+  .lg.peak{background:#f3d6cd} .lg.semi{background:#d2e2f0}
+  .lg.todaybox{background:transparent; box-shadow:inset 0 0 0 2px var(--sage)}
+
+  .wk{margin-bottom:12px; border:1px solid var(--line-strong); border-radius:10px; overflow:hidden; background:var(--card)}
+  .wk-head, .wk-row{display:grid; grid-template-columns:48px repeat(7,1fr)}
+  .wk-head > div{padding:4px 1px 5px; text-align:center; border-right:1px solid var(--line); border-bottom:1px solid var(--line-strong)}
+  .wk-head > div:last-child{border-right:none}
+  .wk-head .hd .dn{font-size:12px; font-weight:800; color:var(--ink); font-variant-numeric:tabular-nums}
+  .wk-head .hd.sun .dn{color:var(--warn)} .wk-head .hd.sat .dn{color:#3b6fb0}
+  .wk-head .hd .hol{font-size:9px; font-weight:800; color:var(--warn); margin-left:2px}
+  .wk-head .hd.out{opacity:.4}
+  .wk-head .hd-peak{background:#eec3b6} .wk-head .hd-semi{background:#bcd6ec}
+  .wk-head .hd-today{box-shadow:inset 0 -3px 0 var(--sage)}
+
+  .wk-row > div{min-height:30px; border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+    font-size:11px; line-height:1.1; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:0 2px}
+  .wk-row > div:last-child{border-right:none}
+  .wk-row:last-child > div{border-bottom:none}
+  .wk-lbl{font-weight:800; color:#fff; font-size:11px; letter-spacing:-.02em}
+  .wk-lbl[data-room="민들레"]{background:var(--r-mindle)}
+  .wk-lbl[data-room="봉숭아"]{background:var(--r-bong)}
+  .wk-lbl[data-room="채송화"]{background:var(--r-chae)}
+  .wk-lbl[data-room="수선화"]{background:var(--r-suseon)}
+  .wk-cell{cursor:pointer}
+  .wk-cell.out{background:#faf9f5; cursor:default}
+  .wk-cell.avail{color:var(--cancel); font-variant-numeric:tabular-nums}
+  .wk-cell.av-peak{background:#f9e3da}
+  .wk-cell.av-semi{background:#e3eff8}
+  .wk-cell.avail:hover{background:var(--sage-tint); color:var(--sage-deep)}
+  .wk-cell.booked{color:#fff; font-weight:700; border-right-color:transparent!important}
+  .wk-cell.booked[data-room="민들레"]{background:var(--r-mindle)}
+  .wk-cell.booked[data-room="봉숭아"]{background:var(--r-bong)}
+  .wk-cell.booked[data-room="채송화"]{background:var(--r-chae)}
+  .wk-cell.booked[data-room="수선화"]{background:var(--r-suseon)}
+  .wk-cell.booked.bk-start{border-top-left-radius:7px; border-bottom-left-radius:7px}
+  .wk-cell.booked.bk-end{border-top-right-radius:7px; border-bottom-right-radius:7px}
+  .wk-cell.booked.cancelled{background:var(--cancel); text-decoration:line-through}
+  .wk-cell.booked.dup{box-shadow:inset 0 0 0 2px var(--warn)}
+  @media(max-width:430px){
+    .wk-head, .wk-row{grid-template-columns:42px repeat(7,1fr)}
+    .wk-row > div{min-height:28px; font-size:10px}
+    .wk-head .hd .dn{font-size:11px}
+    .wk-lbl{font-size:10px; letter-spacing:-.04em}
+  }
+
+  /* ===== 모달 ===== */
+  .modal-bg{position:fixed; inset:0; background:rgba(25,30,22,.42); z-index:40; display:none;
+    align-items:flex-end; justify-content:center}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--paper); width:100%; max-width:560px; max-height:92vh; overflow:auto;
+    border-radius:18px 18px 0 0; padding:18px 18px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:0 -10px 40px -12px rgba(0,0,0,.3)}
+  @media(min-width:560px){ .modal-bg{align-items:center} .modal{border-radius:18px} }
+  .modal h2{margin:2px 0 14px; font-size:19px; letter-spacing:-.01em}
+  .field{margin-bottom:12px}
+  .field label{display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%; padding:11px 12px; border:1px solid var(--line-strong);
+    border-radius:10px; background:var(--card); outline:none}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--sage)}
+  .field textarea{resize:vertical; min-height:64px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .roompick{display:flex; gap:7px; flex-wrap:wrap}
+  .roompick button{flex:1; min-width:64px; border:1.5px solid var(--line-strong); background:var(--card);
+    border-radius:10px; padding:10px 4px; font-size:14px; font-weight:700; color:var(--ink-soft)}
+  .roompick button[data-room="민들레"].on{border-color:var(--r-mindle); background:var(--r-mindle); color:#fff}
+  .roompick button[data-room="봉숭아"].on{border-color:var(--r-bong); background:var(--r-bong); color:#fff}
+  .roompick button[data-room="채송화"].on{border-color:var(--r-chae); background:var(--r-chae); color:#fff}
+  .roompick button[data-room="수선화"].on{border-color:var(--r-suseon); background:var(--r-suseon); color:#fff}
+
+  .overlap{display:none; border:1px solid var(--warn); background:var(--warn-tint);
+    color:var(--warn); border-radius:10px; padding:11px 12px; font-size:13px; margin:2px 0 12px}
+  .overlap.show{display:block}
+  .overlap b{display:block; margin-bottom:4px; font-weight:800}
+  .overlap ul{margin:4px 0 8px; padding-left:18px}
+  .overlap label{display:flex; gap:7px; align-items:center; font-weight:700; cursor:pointer}
+
+  .modal-actions{display:flex; gap:9px; margin-top:6px}
+  .modal-actions button{flex:1; border-radius:11px; padding:13px; font-size:15px; font-weight:700; border:none}
+  .btn-cancel{background:var(--card); border:1px solid var(--line-strong)!important; color:var(--ink-soft)}
+  .btn-save{background:var(--sage); color:#fff}
+  .btn-save:disabled{opacity:.5}
+
+  /* ===== 토스트 ===== */
+  #toast{position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    background:var(--ink); color:#fff; padding:11px 18px; border-radius:999px; font-size:14px; font-weight:600;
+    z-index:60; opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; max-width:90vw}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #toast.warn{background:var(--warn)}
+
+  .spinner{display:inline-block; width:15px; height:15px; border:2px solid rgba(255,255,255,.4);
+    border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cfg-warn{margin:16px; padding:14px; border:1px solid var(--warn); background:var(--warn-tint);
+    color:var(--warn); border-radius:12px; font-size:13px; display:none}
+
+  /* ===== 요금 힌트 (예약 폼) ===== */
+  .ratehint{display:none; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--sage-tint); color:var(--sage-deep); border-radius:10px;
+    padding:9px 12px; font-size:13px; margin:-4px 0 12px}
+  .ratehint b{font-weight:800; font-size:14px}
+  .ratehint button{border:none; background:var(--sage); color:#fff; font-weight:700;
+    border-radius:8px; padding:6px 12px; font-size:13px}
+  .ratehint small{font-weight:600; opacity:.75; font-size:11px}
+  .ratehint span{line-height:1.5}
+
+  /* ===== 시즌 태그 (목록 날짜) ===== */
+  .seasontag{font-size:11px; font-weight:800; padding:1px 7px; border-radius:6px}
+  .seasontag.peak{background:#f6e0d8; color:#b4502f}
+  .seasontag.semi{background:#f3ecd6; color:#9a7b18}
+
+  /* ===== 설정 모달 ===== */
+  .setmodal h3{margin:0; font-size:15px; letter-spacing:-.01em}
+  .setblk{border:1px solid var(--line); background:var(--card); border-radius:14px; padding:13px 14px; margin-bottom:14px}
+  .setblk-h{display:flex; align-items:center; justify-content:space-between; gap:8px}
+  .setblk-d{margin:5px 0 11px; font-size:12px; color:var(--ink-soft); line-height:1.45}
+  .mini-add{border:1px solid var(--sage); background:var(--sage-tint); color:var(--sage-deep);
+    border-radius:8px; padding:6px 11px; font-size:13px; font-weight:700}
+  .setseg{margin-bottom:11px}
+
+  .srow{display:flex; gap:7px; align-items:center; margin-bottom:8px}
+  .srow input,.srow select{padding:9px 10px; border:1px solid var(--line-strong); border-radius:9px;
+    background:var(--paper); outline:none; min-width:0}
+  .srow input:focus,.srow select:focus{border-color:var(--sage)}
+  .srow .grow{flex:1}
+  .srow .date{flex:1.2}
+  .srow .del{border:1px solid var(--line-strong); background:var(--card); color:var(--cancel);
+    border-radius:9px; width:38px; height:38px; flex:none; font-size:16px}
+  .srow .del:hover{border-color:var(--warn); color:var(--warn)}
+  .srow .tilde{color:var(--cancel); font-size:13px; flex:none}
+  .listempty{font-size:13px; color:var(--cancel); padding:6px 2px}
+
+  .ratetbl{width:100%; border-collapse:collapse}
+  .ratetbl th,.ratetbl td{padding:7px 6px; text-align:center; font-size:13px}
+  .ratetbl th{color:var(--ink-soft); font-weight:700; border-bottom:1px solid var(--line)}
+  .ratetbl td:first-child,.ratetbl th:first-child{text-align:left; font-weight:700}
+  .ratetbl td .roomdot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:1px}
+  .ratetbl input{width:100%; max-width:96px; padding:8px; border:1px solid var(--line-strong);
+    border-radius:8px; background:var(--paper); outline:none; text-align:right; font-variant-numeric:tabular-nums}
+  .ratetbl input:focus{border-color:var(--sage)}
+
+  .hol-load{display:inline-flex; gap:6px; align-items:center}
+  .holyear{width:78px; padding:6px 8px; border:1px solid var(--line-strong); border-radius:8px;
+    background:var(--paper); outline:none; text-align:center; font-variant-numeric:tabular-nums}
+  .holyear:focus{border-color:var(--sage)}
+  .holchips{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
+  .holchip{display:inline-flex; align-items:center; gap:7px; background:var(--paper);
+    border:1px solid var(--line-strong); border-radius:999px; padding:5px 9px 5px 11px;
+    font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink)}
+  .holchip button{border:none; background:none; color:var(--cancel); font-size:15px; line-height:1; padding:0; cursor:pointer}
+  .holchip button:hover{color:var(--warn)}
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-mark"><b>예약</b>관리</div>
+    <div class="gate-sub">비밀번호를 입력하세요</div>
+    <input id="pw" type="password" inputmode="text" autocomplete="current-password" placeholder="비밀번호" enterkeyhint="go">
+    <button id="loginBtn">들어가기</button>
+    <div class="gate-err" id="gateErr"></div>
+  </div>
+</div>
+
+<!-- 앱 -->
+<div id="app">
+  <header class="bar">
+    <div class="brand"><span>예약</span>관리</div>
+    <div class="bar-spacer"></div>
+    <button class="icon-btn" id="settingsBtn">설정</button>
+    <button class="icon-btn" id="refreshBtn">새로고침</button>
+    <button class="icon-btn" id="logoutBtn">잠금</button>
+  </header>
+
+  <div class="cfg-warn" id="cfgWarn">⚠ API 주소가 설정되지 않았습니다. index.html 상단 <b>API_URL</b> 값을 배포한 웹앱 주소로 바꾸세요.</div>
+
+  <div class="controls">
+    <div class="monthnav">
+      <button id="prevM" aria-label="이전 달">‹</button>
+      <div class="label" id="mLabel">—</div>
+      <button id="nextM" aria-label="다음 달">›</button>
+      <button class="today" id="todayBtn">오늘</button>
+    </div>
+    <div class="seg viewseg" id="viewSeg">
+      <button data-v="cal" class="on">달력</button>
+      <button data-v="list">목록</button>
+    </div>
+    <div class="filters" id="roomFilters"></div>
+    <div class="filters">
+      <div class="seg" id="statusSeg">
+        <button data-s="active" class="on">예약중</button>
+        <button data-s="all">전체</button>
+        <button data-s="취소">취소</button>
+      </div>
+    </div>
+    <button class="addbtn" id="addBtn">＋ 새 예약 등록</button>
+  </div>
+
+  <main><div id="cal"></div><div id="list"></div></main>
+</div>
+
+<!-- 등록/수정 모달 -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h2 id="modalTitle">새 예약</h2>
+
+    <div class="field">
+      <label id="roomLabel">객실</label>
+      <div class="roompick" id="roomPick"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>체크인</label><input type="date" id="fCi"></div>
+      <div class="field"><label>체크아웃</label><input type="date" id="fCo"></div>
+    </div>
+
+    <div class="overlap" id="overlapBox">
+      <b>선택한 기간에 겹치는 예약이 있습니다</b>
+      <ul id="overlapList"></ul>
+      <label><input type="checkbox" id="ackDup"> 확인했고, 그래도 등록하겠습니다</label>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>고객명</label><input type="text" id="fName" placeholder="이름"></div>
+      <div class="field"><label>연락처</label><input type="text" id="fTel" inputmode="tel" placeholder="010-0000-0000"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>인원</label><input type="text" id="fPpl" inputmode="numeric" placeholder="예: 4"></div>
+      <div class="field"><label>예약경로</label><select id="fRoute"></select></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label>요금(원)</label><input type="text" id="fFee" inputmode="numeric" placeholder="예: 180000"></div>
+      <div class="field"><label>추가요금(원)</label><input type="text" id="fAddfee" inputmode="numeric" placeholder="예: 20000"></div>
+    </div>
+    <div class="ratehint" id="rateHint"></div>
+
+    <div class="field"><label>추가내용</label><input type="text" id="fAddnote" placeholder="예: 숯 서비스, 늦은 체크인"></div>
+    <div class="field"><label>메모</label><textarea id="fMemo" placeholder="내부 메모"></textarea></div>
+
+    <div class="field" style="margin-bottom:16px">
+      <label>상태</label>
+      <select id="fStatus"></select>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" id="cancelBtn">닫기</button>
+      <button class="btn-save" id="saveBtn">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 설정 모달 -->
+<div class="modal-bg" id="setBg">
+  <div class="modal setmodal" role="dialog" aria-modal="true">
+    <h2>설정</h2>
+
+    <section class="setblk">
+      <div class="setblk-h"><h3>시즌 기간</h3><button class="mini-add" id="addSeason">＋ 기간 추가</button></div>
+      <p class="setblk-d">성수기·준성수기로 지정할 기간을 넣으세요. 지정하지 않은 날은 평수기입니다.</p>
+      <div id="seasonList"></div>
+    </section>
+
+    <section class="setblk">
+      <div class="setblk-h"><h3>요금표</h3></div>
+      <p class="setblk-d">객실별, 시즌별 1박 요금입니다. 주말은 금·토 기준입니다.</p>
+      <div class="seg setseg" id="rateSeasonSeg">
+        <button data-s="평수기" class="on">평수기</button>
+        <button data-s="준성수기">준성수기</button>
+        <button data-s="성수기">성수기</button>
+      </div>
+      <div id="rateTable"></div>
+    </section>
+
+    <section class="setblk">
+      <div class="setblk-h"><h3>특정일 요금</h3><button class="mini-add" id="addOverride">＋ 날짜 추가</button></div>
+      <p class="setblk-d">공휴일처럼 이 날만 다른 요금이면 여기서 덮어씁니다. 시즌·주말보다 우선합니다.</p>
+      <div id="ovList"></div>
+    </section>
+
+    <section class="setblk">
+      <div class="setblk-h"><h3>공휴일</h3>
+        <span class="hol-load"><input id="holYear" class="holyear" type="number" min="2020" max="2099"><button class="mini-add" id="loadHol">불러오기</button></span>
+      </div>
+      <p class="setblk-d">공휴일 당일과 그 전날은 자동으로 주말 요금이 적용됩니다. 구글 캘린더에서 불러온 뒤 직접 더하거나 뺄 수 있습니다.</p>
+      <div class="srow"><input id="holAddDate" class="date" type="date"><button class="mini-add" id="addHol">추가</button></div>
+      <div id="holList" class="holchips"></div>
+    </section>
+
+    <div class="modal-actions">
+      <button class="btn-cancel" id="setCancel">닫기</button>
+      <button class="btn-save" id="setSave">설정 저장</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ====================================================================== */
+/*  ↓↓↓  여기에 배포한 Apps Script 웹앱의 /exec 주소를 넣으세요  ↓↓↓        */
+const API_URL = "https://script.google.com/macros/s/AKfycbw3tfa4tKCr6_g2RmhDkwexIFZ3fKwJprDTxGqCD3NlBeb1HCu3tlOM1xmVO_qTOdLA/exec";
+/* ====================================================================== */
+
+const ROOM_LIST = ['민들레','봉숭아','채송화','수선화'];
+const WK = ['일','월','화','수','목','금','토'];
+
+const state = {
+  token: '',
+  rows: [],
+  routes: ['직접','네이버','야놀자','여기어때','떠나요','에어비앤비','기타'],
+  statuses: ['확정','대기','취소'],
+  ym: null,                 // {y, m}
+  roomFilter: new Set(ROOM_LIST),
+  statusFilter: 'active',   // 'active' | 'all' | '취소'
+  view: 'cal',              // 'cal' | 'list'
+  editRow: null,
+  decoy: false,             // 비밀번호 틀림 → 가짜 화면 모드
+  fakeRows: [],
+  _fakeId: 100000,
+  settings: null,           // 시즌/요금표/특정일 요금
+  _draft: null              // 설정 편집용 임시본
+};
+
+/* ---------- API ---------- */
+async function api(action, payload){
+  if(!API_URL || API_URL.indexOf('PASTE-') === 0){
+    document.getElementById('cfgWarn').style.display='block';
+    throw new Error('API_URL 미설정');
+  }
+  const res = await fetch(API_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, // 단순요청 → CORS 프리플라이트 회피
+    body: JSON.stringify({ token: state.token, action, payload })
+  });
+  const data = await res.json();
+  if(!data.ok && data.error === 'auth') throw new Error('auth');
+  if(!data.ok) throw new Error(data.error || '오류');
+  return data;
+}
+
+/* ---------- 데이터 처리: 진짜 모드면 API, 미끼 모드면 로컬 가짜 ---------- */
+async function dataOp(action, payload){
+  if(state.decoy) return decoyOp(action, payload);
+  return api(action, payload);
+}
+function pickPayload(p){
+  const n = x => (x===''||x==null) ? '' : (isNaN(Number(x)) ? x : Number(x));
+  return { status:p.status||'확정', ci:p.ci, co:p.co, room:p.room, name:p.name||'',
+    tel:p.tel||'', ppl:p.ppl||'', route:p.route||'', fee:n(p.fee), addfee:n(p.addfee),
+    addnote:p.addnote||'', memo:p.memo||'' };
+}
+function decoyOp(action, payload){
+  switch(action){
+    case 'list':   return { ok:true, rows: state.fakeRows.slice(), rooms:ROOM_LIST, routes:state.routes, statuses:state.statuses, settings: state.settings || defaultSettings() };
+    case 'create': { const id=state._fakeId++; state.fakeRows.push(Object.assign({row:id, no:id}, pickPayload(payload))); return {ok:true, row:id, no:id}; }
+    case 'update': { const r=state.fakeRows.find(x=>x.row===payload.row); if(r) Object.assign(r, pickPayload(payload)); return {ok:true}; }
+    case 'delete': { state.fakeRows = state.fakeRows.filter(x=>x.row!==payload.row); return {ok:true}; }
+    case 'saveSettings': { state.settings = payload.settings || payload; return {ok:true}; }
+    case 'fetchHolidays': return { ok:true, holidays:['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-01','2026-03-02','2026-05-05','2026-05-24','2026-06-06','2026-08-15','2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05','2026-10-09','2026-12-25'] };
+  }
+  return {ok:true};
+}
+
+/* ---------- 설정: 기본값 + 요금 계산 ---------- */
+function defaultSettings(){
+  const mk=(a,b,c,d,e,f)=>({'평수기':{weekday:a,weekend:b},'준성수기':{weekday:c,weekend:d},'성수기':{weekday:e,weekend:f}});
+  return { seasons:[
+    {start:'2026-07-01', end:'2026-07-16', type:'준성수기'},
+    {start:'2026-07-17', end:'2026-08-22', type:'성수기'},
+    {start:'2026-08-23', end:'2026-09-05', type:'준성수기'}
+  ], rates:{
+    '민들레':mk(160000,180000,170000,190000,240000,240000),
+    '봉숭아':mk(180000,200000,190000,210000,260000,260000),
+    '채송화':mk(140000,160000,150000,170000,200000,200000),
+    '수선화':mk(140000,160000,150000,170000,200000,200000)
+  }, overrides:[], holidays:[] };
+}
+const SEASON_TYPES = ['평수기','준성수기','성수기'];
+function seasonOf(iso){
+  const S=state.settings; if(!S||!S.seasons) return '평수기';
+  let semi=false;
+  for(const r of S.seasons){
+    if(r.start && r.end && iso>=r.start && iso<=r.end){
+      if(r.type==='성수기') return '성수기';
+      if(r.type==='준성수기') semi=true;
+    }
+  }
+  return semi?'준성수기':'평수기';
+}
+function isWeekend(iso){ const [y,m,d]=iso.split('-').map(Number); const w=new Date(y,m-1,d).getDay(); return w===5||w===6; } // 금·토
+function isHoliday(iso){ const S=state.settings; return !!(S && S.holidays && S.holidays.indexOf(iso)>=0); }
+function dayKind(iso){
+  // 공휴일 당일/전날 → 주말요금. 라벨 우선순위: 공휴일 > 공휴일 전날 > 주말 > 평일
+  if(isHoliday(iso))            return { weekend:true,  reason:'공휴일' };
+  if(isHoliday(addDays(iso,1))) return { weekend:true,  reason:'공휴일 전날' };
+  if(isWeekend(iso))            return { weekend:true,  reason:'주말' };
+  return { weekend:false, reason:'평일' };
+}
+function nightlyRate(room,iso){
+  const S=state.settings; if(!S) return '';
+  let ov=null;
+  for(const o of (S.overrides||[])){ if(o.date===iso && o.room===room){ ov=o; break; } }
+  if(!ov) for(const o of (S.overrides||[])){ if(o.date===iso && (!o.room)){ ov=o; break; } }
+  if(ov) return Number(ov.rate)||0;
+  const rt=S.rates && S.rates[room]; if(!rt) return '';
+  const seg=rt[seasonOf(iso)]; if(!seg) return '';
+  const v = dayKind(iso).weekend ? seg.weekend : seg.weekday;
+  return (v===''||v==null)?'':Number(v)||0;
+}
+function stayTotal(room,ci,co){
+  if(!room||!ci||!co||co<=ci) return '';
+  let d=ci, total=0, any=false;
+  while(d<co){ const r=nightlyRate(room,d); if(r!==''){ total+=Number(r); any=true; } d=addDays(d,1); }
+  return any?total:'';
+}
+
+/* 그럴듯한 가짜 예약 생성 (브라우저 안에서만 존재, 시트와 무관) */
+function genFake(){
+  const names=['김민준','이서연','박도윤','최예은','정시우','강하은','조은우','윤지아',
+               '임주원','한서아','오현우','서지유','신예준','권하준','황지호','안유나','문채원','배준서'];
+  const routes=['직접','네이버','야놀자','여기어때','떠나요'];
+  const memos=['숯 서비스 요청','늦은 체크인(22시)','조용한 방 선호','바베큐 2인 추가','',''];
+  let rows=[], id=90001, seed=7;
+  const rnd=()=>{ seed=(seed*9301+49297)%233280; return seed/233280; };
+  const base=new Date(); base.setDate(1);
+  for(let off=-1; off<=2; off++){
+    const md=new Date(base.getFullYear(), base.getMonth()+off, 1);
+    const y=md.getFullYear(), m=md.getMonth()+1, daysIn=new Date(y,m,0).getDate();
+    ROOM_LIST.forEach(room=>{
+      let day=2+Math.floor(rnd()*4);
+      while(day < daysIn-1){
+        const nights = rnd()<0.25 ? 2 : 1;
+        const ci=ymd(y,m,day), co=addDays(ci,nights);
+        const wend=(()=>{ const d=new Date(y,m-1,day).getDay(); return d===5||d===6; })();
+        rows.push({
+          row:id, no:id, status: rnd()<0.08?'대기':'확정', ci, co, room,
+          name: names[Math.floor(rnd()*names.length)],
+          tel: '010-'+(1000+Math.floor(rnd()*9000))+'-'+(1000+Math.floor(rnd()*9000)),
+          ppl: String(2+Math.floor(rnd()*5)),
+          route: routes[Math.floor(rnd()*routes.length)],
+          fee: (wend?160000:140000)+Math.floor(rnd()*3)*20000,
+          addfee: rnd()<0.25?20000:'', addnote:'',
+          memo: rnd()<0.22 ? memos[Math.floor(rnd()*memos.length)] : ''
+        });
+        id++;
+        day += nights + 2 + Math.floor(rnd()*5);
+      }
+    });
+  }
+  return rows;
+}
+
+function enterDecoy(pw){
+  state.decoy = true;
+  state.fakeRows = genFake();
+  state._fakeId = 99000;
+  state.rows = state.fakeRows;
+  state.settings = defaultSettings();
+  sessionStorage.setItem('pw', pw);   // 새로고침해도 같은 화면이 보이도록
+  gate.style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const now=new Date(); state.ym={ y:now.getFullYear(), m:now.getMonth()+1 };
+  buildRoomFilters(); fillSelectOptions(); render();
+}
+
+/* ---------- 로그인 ---------- */
+const gate = document.getElementById('gate');
+const gateErr = document.getElementById('gateErr');
+const loginBtn = document.getElementById('loginBtn');
+const pwInput = document.getElementById('pw');
+
+async function doLogin(){
+  const pw = pwInput.value.trim();
+  if(!pw) return;
+  state.token = pw;
+  loginBtn.disabled = true; loginBtn.innerHTML = '<span class="spinner"></span>';
+  gateErr.textContent = '';
+  try{
+    const data = await api('list', {});
+    afterLogin(data);
+    sessionStorage.setItem('pw', pw);
+  }catch(e){
+    if(e.message==='auth'){            // 비밀번호 틀림 → 성공한 척 가짜 화면
+      enterDecoy(pw);
+    }
+    else if(e.message==='API_URL 미설정') gateErr.textContent = 'API 주소가 설정되지 않았습니다.';
+    else gateErr.textContent = '연결 실패: ' + e.message;
+    state.token = '';
+  }finally{
+    loginBtn.disabled = false; loginBtn.textContent = '들어가기';
+  }
+}
+loginBtn.onclick = doLogin;
+pwInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+function afterLogin(data){
+  state.decoy = false;
+  if(data.routes) state.routes = data.routes;
+  if(data.statuses) state.statuses = data.statuses;
+  state.settings = data.settings || defaultSettings();
+  state.rows = data.rows || [];
+  gate.style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const now = new Date();
+  state.ym = { y: now.getFullYear(), m: now.getMonth()+1 };   // 항상 오늘 달로 시작
+  buildRoomFilters();
+  fillSelectOptions();
+  render();
+}
+
+/* 같은 세션 자동 로그인 */
+(function(){
+  const saved = sessionStorage.getItem('pw');
+  if(saved){ pwInput.value = saved; doLogin(); }
+})();
+
+async function reload(){
+  try{
+    const data = await dataOp('list', {});
+    state.rows = data.rows || [];
+    render();
+  }catch(e){ handleErr(e); }
+}
+function handleErr(e){
+  if(e.message==='auth'){ logout(); return; }
+  toast('오류: ' + e.message, true);
+}
+
+/* ---------- 필터 UI ---------- */
+function buildRoomFilters(){
+  const box = document.getElementById('roomFilters');
+  box.innerHTML = '';
+  ROOM_LIST.forEach(r=>{
+    const b = document.createElement('button');
+    b.className = 'chip on'; b.dataset.room = r;
+    b.innerHTML = '<span class="dot"></span>' + r;
+    b.onclick = ()=>{
+      if(state.roomFilter.has(r)) state.roomFilter.delete(r); else state.roomFilter.add(r);
+      b.classList.toggle('on', state.roomFilter.has(r));
+      render();
+    };
+    box.appendChild(b);
+  });
+}
+document.getElementById('statusSeg').querySelectorAll('button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('#statusSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); state.statusFilter = b.dataset.s; render();
+  };
+});
+document.getElementById('viewSeg').querySelectorAll('button').forEach(b=>{
+  b.onclick = ()=>{
+    document.querySelectorAll('#viewSeg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); state.view = b.dataset.v; render();
+  };
+});
+
+/* ---------- 월 이동 ---------- */
+function shiftMonth(d){
+  let {y,m} = state.ym; m += d;
+  if(m<1){m=12;y--} if(m>12){m=1;y++}
+  state.ym = {y,m}; render();
+}
+document.getElementById('prevM').onclick = ()=>shiftMonth(-1);
+document.getElementById('nextM').onclick = ()=>shiftMonth(1);
+document.getElementById('todayBtn').onclick = ()=>{
+  const n=new Date(); state.ym={y:n.getFullYear(), m:n.getMonth()+1}; render();
+};
+document.getElementById('refreshBtn').onclick = reload;
+document.getElementById('logoutBtn').onclick = logout;
+function logout(){
+  sessionStorage.removeItem('pw'); state.token=''; state.rows=[];
+  state.decoy=false; state.fakeRows=[];
+  document.getElementById('app').style.display='none';
+  gate.style.display='flex'; pwInput.value=''; pwInput.focus();
+}
+
+/* ---------- 중복 계산 ---------- */
+function overlaps(a, b){
+  if(a.room!==b.room) return false;
+  if(!a.ci||!a.co||!b.ci||!b.co) return false;
+  return a.ci < b.co && b.ci < a.co;
+}
+function conflictPartners(row){
+  // 취소 아닌 같은 객실 겹침 (자기 자신 제외)
+  if(row.status==='취소') return [];
+  return state.rows.filter(o => o.row!==row.row && o.status!=='취소' && overlaps(row,o));
+}
+
+/* ---------- 렌더 ---------- */
+function inMonth(r, y, m){
+  if(!r.ci||!r.co) return false;
+  const first = ymd(y,m,1);
+  const nextFirst = m===12 ? ymd(y+1,1,1) : ymd(y,m+1,1);
+  return r.ci < nextFirst && r.co > first;   // 그 달에 1박이라도 걸치면 표시
+}
+function ymd(y,m,d){ return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0'); }
+
+function passFilter(r){
+  if(!state.roomFilter.has(r.room)) return false;
+  if(state.statusFilter==='active' && r.status==='취소') return false;
+  if(state.statusFilter==='취소' && r.status!=='취소') return false;
+  return true;
+}
+
+function render(){
+  document.getElementById('mLabel').textContent = state.ym.y + '년 ' + state.ym.m + '월';
+  const listEl=document.getElementById('list'), calEl=document.getElementById('cal');
+  if(state.view==='cal'){ listEl.style.display='none'; calEl.style.display='block'; renderCalendar(); }
+  else { calEl.style.display='none'; listEl.style.display='block'; renderList(); }
+}
+
+function renderList(){
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+
+  let rows = state.rows.filter(r => inMonth(r, state.ym.y, state.ym.m) && passFilter(r));
+  rows.sort((a,b)=> (a.ci===b.ci) ? a.room.localeCompare(b.room) : a.ci.localeCompare(b.ci));
+
+  if(rows.length===0){
+    list.innerHTML = '<div class="empty"><b>예약이 없습니다</b>＋ 새 예약 등록으로 추가하세요</div>';
+    return;
+  }
+
+  let lastDate = null, group = null;
+  rows.forEach(r=>{
+    if(r.ci !== lastDate){
+      lastDate = r.ci;
+      group = document.createElement('div'); group.className='daygroup';
+      const h = document.createElement('div'); h.className='dayhead';
+      h.appendChild(dateHead(r.ci));
+      const seas=seasonOf(r.ci);
+      if(seas!=='평수기'){ const tg=document.createElement('span'); tg.className='seasontag '+(seas==='성수기'?'peak':'semi'); tg.textContent=seas; h.appendChild(tg); }
+      group.appendChild(h);
+      list.appendChild(group);
+    }
+    group.appendChild(card(r));
+  });
+}
+
+function manWon(v){
+  if(v===''||v==null) return '';
+  const n=Number(v); if(isNaN(n)) return String(v);
+  const man=n/10000;
+  return (Number.isInteger(man)?man:man.toFixed(1))+'만';
+}
+function elc(tag,cls){ const e=document.createElement(tag); if(cls)e.className=cls; return e; }
+
+function renderCalendar(){
+  const cal=document.getElementById('cal'); cal.innerHTML='';
+  const y=state.ym.y, m=state.ym.m;
+  const t=new Date(); const todayISO=ymd(t.getFullYear(),t.getMonth()+1,t.getDate());
+  const WKH=['일','월','화','수','목','금','토'];
+  const rooms=ROOM_LIST.filter(r=>state.roomFilter.has(r));
+
+  // 점유 맵: room|iso -> booking (취소/필터 반영)
+  const occ={};
+  state.rows.forEach(r=>{
+    if(!passFilter(r)||!r.ci||!r.co) return;
+    let d=r.ci,g=0;
+    while(d<r.co && g<400){ const k=r.room+'|'+d; if(!occ[k]) occ[k]=r; d=addDays(d,1); g++; }
+  });
+
+  // 범례
+  const lg=elc('div','cal-legend');
+  lg.innerHTML='<span><i class="lg peak"></i>성수기</span><span><i class="lg semi"></i>준성수기</span>'+
+               '<span><i class="lg todaybox"></i>오늘</span><span style="color:var(--cancel)">빈칸=1박 요금</span>';
+  cal.appendChild(lg);
+
+  // 주(week) 블록 만들기 (일요일 시작)
+  const firstDow=new Date(y,m-1,1).getDay();
+  const daysIn=new Date(y,m,0).getDate();
+  let cur=new Date(y,m-1,1-firstDow);
+  const last=new Date(y,m-1,daysIn);
+
+  while(true){
+    const wkDays=[];
+    for(let i=0;i<7;i++){
+      wkDays.push({ iso:ymd(cur.getFullYear(),cur.getMonth()+1,cur.getDate()), inMonth:cur.getMonth()===m-1, dow:i });
+      cur.setDate(cur.getDate()+1);
+    }
+
+    const block=elc('div','wk');
+
+    // 헤더 행
+    const head=elc('div','wk-head');
+    head.appendChild(elc('div','')); // 좌상단 빈칸
+    wkDays.forEach(d=>{
+      const hd=elc('div','hd'+(d.dow===0?' sun':d.dow===6?' sat':'')+(d.inMonth?'':' out'));
+      const seas=d.inMonth?seasonOf(d.iso):'평수기';
+      if(seas==='성수기') hd.classList.add('hd-peak'); else if(seas==='준성수기') hd.classList.add('hd-semi');
+      if(d.iso===todayISO) hd.classList.add('hd-today');
+      const dn=elc('span','dn'); dn.textContent=Number(d.iso.split('-')[2]);
+      hd.appendChild(dn);
+      if(d.inMonth && isHoliday(d.iso)){ const h=elc('span','hol'); h.textContent='휴'; hd.appendChild(h); }
+      head.appendChild(hd);
+    });
+    block.appendChild(head);
+
+    // 객실 행
+    rooms.forEach(room=>{
+      const row=elc('div','wk-row');
+      const lbl=elc('div','wk-lbl'); lbl.dataset.room=room; lbl.textContent=room; lbl.title=room;
+      row.appendChild(lbl);
+      wkDays.forEach(d=>{
+        const cell=elc('div','wk-cell');
+        if(!d.inMonth){ cell.classList.add('out'); row.appendChild(cell); return; }
+        const seas=seasonOf(d.iso);
+        const b=occ[room+'|'+d.iso];
+        if(b){
+          cell.classList.add('booked'); cell.dataset.room=room;
+          const prev=occ[room+'|'+addDays(d.iso,-1)], next=occ[room+'|'+addDays(d.iso,1)];
+          const isStart=(d.dow===0)||!(prev&&prev.row===b.row);
+          const isEnd=(d.dow===6)||!(next&&next.row===b.row);
+          if(isStart) cell.classList.add('bk-start');
+          if(isEnd) cell.classList.add('bk-end');
+          if(b.status==='취소') cell.classList.add('cancelled');
+          if(conflictPartners(b).length) cell.classList.add('dup');
+          cell.textContent=isStart?(b.name||'(무명)'):'';
+          cell.title=room+' · '+(b.name||'(무명)')+' · '+fmtMd(b.ci)+'~'+fmtMd(b.co);
+          cell.onclick=(e)=>{ e.stopPropagation(); openForm('edit', b); };
+        } else {
+          cell.classList.add('avail');
+          if(seas==='성수기') cell.classList.add('av-peak'); else if(seas==='준성수기') cell.classList.add('av-semi');
+          const rate=nightlyRate(room,d.iso);
+          cell.textContent=manWon(rate);
+          cell.title=room+' '+d.iso+(rate!==''?' · '+Number(rate).toLocaleString('ko-KR')+'원':'');
+          cell.onclick=()=>openForm('new', null, d.iso, room);
+        }
+        row.appendChild(cell);
+      });
+      block.appendChild(row);
+    });
+
+    cal.appendChild(block);
+    if(cur>last) break;
+  }
+}
+
+function dateHead(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  const dow = new Date(y,m-1,d).getDay();
+  const span = document.createElement('span');
+  const wkClass = dow===0?'sun':dow===6?'sat':'wk';
+  span.innerHTML = `${m}월 ${d}일 <span class="${wkClass}">(${WK[dow]})</span> 체크인`;
+  return span;
+}
+
+function nights(ci,co){
+  const a=new Date(ci), b=new Date(co);
+  return Math.max(1, Math.round((b-a)/86400000));
+}
+function won(v){
+  if(v===''||v==null) return '';
+  const n = Number(v);
+  return isNaN(n) ? String(v) : n.toLocaleString('ko-KR')+'원';
+}
+
+function card(r){
+  const el = document.createElement('div');
+  el.className = 'resv' + (r.status==='취소'?' cancelled':'');
+  el.dataset.room = r.room;
+
+  const partners = conflictPartners(r);
+  let badges = '';
+  if(r.status==='대기') badges += '<span class="badge hold">대기</span>';
+  if(r.status==='취소') badges += '<span class="badge cancel">취소</span>';
+  if(partners.length){
+    const who = partners.map(p=>`${p.name||'(무명)'} ${p.ci}~${p.co}`).join(', ');
+    badges += `<span class="badge dup" title="${esc(who)}">중복 ${partners.length}</span>`;
+  }
+
+  const n = nights(r.ci, r.co);
+  const meta = [];
+  if(r.tel)   meta.push(`<span><span class="k">연락처</span> ${esc(r.tel)}</span>`);
+  if(r.ppl)   meta.push(`<span><span class="k">인원</span> ${esc(String(r.ppl))}</span>`);
+  if(r.route) meta.push(`<span><span class="k">경로</span> ${esc(r.route)}</span>`);
+  if(r.fee!=='') meta.push(`<span><span class="k">요금</span> ${esc(won(r.fee))}</span>`);
+  if(r.addfee!=='' && Number(r.addfee)!==0) meta.push(`<span><span class="k">추가</span> ${esc(won(r.addfee))}</span>`);
+  if(r.addnote) meta.push(`<span><span class="k">추가내용</span> ${esc(r.addnote)}</span>`);
+
+  el.innerHTML = `
+    <div class="r-top">
+      <span class="roomtag" data-room="${esc(r.room)}">${esc(r.room)}</span>
+      <span class="who">${esc(r.name||'(무명)')}</span>
+      ${badges}
+    </div>
+    <div class="r-dates"><b>${fmtMd(r.ci)}</b> → <b>${fmtMd(r.co)}</b> · ${n}박</div>
+    ${meta.length?`<div class="r-meta">${meta.join('')}</div>`:''}
+    ${r.memo?`<div class="r-memo">📝 ${esc(r.memo)}</div>`:''}
+    <div class="r-actions">
+      <button data-act="memo">메모</button>
+      <button data-act="edit">수정</button>
+      <button data-act="del" class="del">삭제</button>
+    </div>`;
+
+  el.querySelector('[data-act="edit"]').onclick = ()=>openForm('edit', r);
+  el.querySelector('[data-act="memo"]').onclick = ()=>openMemo(r);
+  el.querySelector('[data-act="del"]').onclick  = ()=>removeRow(r);
+  return el;
+}
+function fmtMd(iso){ const [,m,d]=iso.split('-'); return `${+m}/${+d}`; }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- 모달 ---------- */
+const modalBg = document.getElementById('modalBg');
+const F = id => document.getElementById(id);
+
+function fillSelectOptions(){
+  F('fRoute').innerHTML = '<option value=""></option>' + state.routes.map(x=>`<option>${esc(x)}</option>`).join('');
+  F('fStatus').innerHTML = state.statuses.map(x=>`<option>${esc(x)}</option>`).join('');
+  const rp = F('roomPick'); rp.innerHTML='';
+  ROOM_LIST.forEach(r=>{
+    const b=document.createElement('button'); b.dataset.room=r; b.textContent=r;
+    b.onclick=()=>{
+      if(state.editRow){ rp.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
+      else { b.classList.toggle('on'); }   // 새 예약: 여러 객실 선택 가능
+      checkOverlapLive(); updateRateHint();
+    };
+    rp.appendChild(b);
+  });
+}
+function selectedRooms(){ return [...F('roomPick').querySelectorAll('button.on')].map(b=>b.dataset.room); }
+function selectedRoom(){ return selectedRooms()[0]||''; }
+function pickRoom(r){ F('roomPick').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.room===r)); }
+
+function openForm(mode, r, presetDate, presetRoom){
+  state.editRow = mode==='edit' ? r.row : null;
+  F('modalTitle').textContent = mode==='edit' ? '예약 수정' : '새 예약';
+  document.getElementById('roomLabel').textContent = mode==='edit' ? '객실' : '객실 (여러 개 선택 가능)';
+  if(mode==='edit'){
+    pickRoom(r.room); F('fCi').value=r.ci; F('fCo').value=r.co;
+    F('fName').value=r.name||''; F('fTel').value=r.tel||''; F('fPpl').value=r.ppl||'';
+    F('fRoute').value=r.route||''; F('fFee').value=r.fee===''?'':r.fee;
+    F('fAddfee').value=r.addfee===''?'':r.addfee; F('fAddnote').value=r.addnote||'';
+    F('fMemo').value=r.memo||''; F('fStatus').value=r.status||'확정';
+  }else{
+    pickRoom(presetRoom||''); const t=new Date();
+    const ci = presetDate || ymd(state.ym.y, state.ym.m, Math.min(t.getDate(), 28));
+    F('fCi').value=ci; F('fCo').value=addDays(ci,1);
+    ['fName','fTel','fPpl','fRoute','fFee','fAddfee','fAddnote','fMemo'].forEach(id=>F(id).value='');
+    F('fStatus').value='확정';
+  }
+  F('ackDup').checked=false; checkOverlapLive(); updateRateHint(mode==='new');
+  modalBg.classList.add('show');
+}
+function addDays(iso,d){ const t=new Date(iso); t.setDate(t.getDate()+d); return t.toISOString().slice(0,10); }
+
+F('fCi').addEventListener('change', ()=>{
+  if(F('fCo').value <= F('fCi').value) F('fCo').value = addDays(F('fCi').value,1);
+  checkOverlapLive(); updateRateHint();
+});
+F('fCo').addEventListener('change', ()=>{ checkOverlapLive(); updateRateHint(); });
+
+function updateRateHint(autofill){
+  const rooms=selectedRooms(), ci=F('fCi').value, co=F('fCo').value;
+  const hint=F('rateHint');
+  if(!rooms.length||!ci||!co||co<=ci){ hint.style.display='none'; hint.innerHTML=''; return; }
+  const n=nights(ci,co);
+
+  if(rooms.length===1){
+    const t=stayTotal(rooms[0],ci,co);
+    if(t===''){ hint.style.display='none'; hint.innerHTML=''; return; }
+    const segset=new Set(); let d=ci;
+    while(d<co){ segset.add(seasonOf(d)+' '+dayKind(d).reason); d=addDays(d,1); }
+    hint.style.display='flex';
+    hint.innerHTML='<span>자동 요금 <b>'+t.toLocaleString('ko-KR')+'원</b> · '+n+'박 ('+[...segset].join(', ')+')</span>'+
+                   '<button type="button" id="applyRate">적용</button>';
+    F('applyRate').onclick=()=>{ F('fFee').value=t; toast('자동 요금을 넣었습니다'); };
+    if(autofill && !F('fFee').value) F('fFee').value=t;
+  } else {
+    const parts=rooms.map(r=>{ const t=stayTotal(r,ci,co); return esc(r)+' '+(t===''?'-':t.toLocaleString('ko-KR')); });
+    hint.style.display='flex';
+    hint.innerHTML='<span>객실별 자동 요금 · '+n+'박<br>'+parts.join(' · ')+'<br><small>요금칸을 비워두면 객실마다 자동 적용됩니다.</small></span>';
+  }
+}
+
+function checkOverlapLive(){
+  const rooms=selectedRooms(), ci=F('fCi').value, co=F('fCo').value;
+  const box=F('overlapBox');
+  if(!rooms.length||!ci||!co||co<=ci){ box.classList.remove('show'); return; }
+  let items=[];
+  rooms.forEach(room=>{
+    state.rows.forEach(o=>{
+      if(o.row!==state.editRow && o.status!=='취소' && overlaps({room,ci,co},o)) items.push({room, h:o});
+    });
+  });
+  if(items.length===0){ box.classList.remove('show'); return; }
+  F('overlapList').innerHTML = items.map(it=>
+    `<li><b>${esc(it.room)}</b> · ${esc(it.h.name||'(무명)')} ${fmtMd(it.h.ci)}~${fmtMd(it.h.co)} · ${esc(it.h.status)}</li>`).join('');
+  box.classList.add('show');
+}
+
+document.getElementById('cancelBtn').onclick = ()=>modalBg.classList.remove('show');
+modalBg.addEventListener('click', e=>{ if(e.target===modalBg) modalBg.classList.remove('show'); });
+document.getElementById('addBtn').onclick = ()=>openForm('new');
+
+document.getElementById('saveBtn').onclick = async ()=>{
+  const rooms=selectedRooms(), ci=F('fCi').value, co=F('fCo').value;
+  if(!rooms.length){ toast('객실을 선택하세요', true); return; }
+  if(!ci||!co){ toast('체크인/체크아웃 날짜를 입력하세요', true); return; }
+  if(co<=ci){ toast('체크아웃은 체크인보다 뒤여야 합니다', true); return; }
+  if(F('overlapBox').classList.contains('show') && !F('ackDup').checked){
+    toast('중복 예약입니다. 확인 체크 후 저장하세요', true); return;
+  }
+  const common = {
+    ci, co,
+    name:F('fName').value.trim(), tel:F('fTel').value.trim(), ppl:F('fPpl').value.trim(),
+    route:F('fRoute').value, addfee:F('fAddfee').value.trim(),
+    addnote:F('fAddnote').value.trim(), memo:F('fMemo').value.trim(), status:F('fStatus').value
+  };
+  const feeInput = F('fFee').value.trim();
+  const btn=document.getElementById('saveBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try{
+    if(state.editRow){
+      const payload=Object.assign({}, common, {room:rooms[0], fee:feeInput, row:state.editRow});
+      await dataOp('update', payload); toast('수정했습니다');
+    } else {
+      for(const room of rooms){
+        const fee = feeInput!=='' ? feeInput : (stayTotal(room,ci,co)||'');
+        await dataOp('create', Object.assign({}, common, {room, fee}));
+      }
+      toast(rooms.length>1 ? rooms.length+'개 객실 등록했습니다' : '등록했습니다');
+    }
+    modalBg.classList.remove('show');
+    await reload();
+  }catch(e){ handleErr(e); }
+  finally{ btn.disabled=false; btn.textContent='저장'; }
+};
+
+/* ---------- 빠른 메모 ---------- */
+async function openMemo(r){
+  const cur = r.memo || '';
+  const v = prompt(`메모 — ${r.name||'(무명)'} (${r.room} ${fmtMd(r.ci)})`, cur);
+  if(v===null || v===cur) return;
+  try{
+    await dataOp('update', {
+      row:r.row, room:r.room, ci:r.ci, co:r.co, name:r.name, tel:r.tel, ppl:r.ppl,
+      route:r.route, fee:r.fee, addfee:r.addfee, addnote:r.addnote, memo:v, status:r.status
+    });
+    toast('메모를 저장했습니다'); await reload();
+  }catch(e){ handleErr(e); }
+}
+
+/* ---------- 삭제 ---------- */
+async function removeRow(r){
+  if(!confirm(`삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n되돌릴 수 없습니다.`)) return;
+  try{ await dataOp('delete', {row:r.row}); toast('삭제했습니다'); await reload(); }
+  catch(e){ handleErr(e); }
+}
+
+/* ---------- 설정 모달 ---------- */
+const setBg = document.getElementById('setBg');
+function roomVar(r){ return ({'민들레':'mindle','봉숭아':'bong','채송화':'chae','수선화':'suseon'})[r]||'mindle'; }
+function ensureRate(room){
+  const d=state._draft;
+  if(!d.rates[room]){
+    const def=defaultSettings().rates[room];
+    d.rates[room]= def || {'평수기':{weekday:'',weekend:''},'준성수기':{weekday:'',weekend:''},'성수기':{weekday:'',weekend:''}};
+  }
+  SEASON_TYPES.forEach(s=>{ if(!d.rates[room][s]) d.rates[room][s]={weekday:'',weekend:''}; });
+}
+function rateVal(room,season,k){
+  const r=state._draft.rates[room];
+  return (r&&r[season]&&r[season][k]!=null&&r[season][k]!=='') ? r[season][k] : '';
+}
+
+function openSettings(){
+  state._draft = JSON.parse(JSON.stringify(state.settings || defaultSettings()));
+  if(!Array.isArray(state._draft.seasons)) state._draft.seasons=[];
+  if(!Array.isArray(state._draft.overrides)) state._draft.overrides=[];
+  if(!Array.isArray(state._draft.holidays)) state._draft.holidays=[];
+  if(!state._draft.rates) state._draft.rates={};
+  ROOM_LIST.forEach(ensureRate);
+  state._rateSeason='평수기';
+  document.querySelectorAll('#rateSeasonSeg button').forEach(b=>b.classList.toggle('on', b.dataset.s==='평수기'));
+  document.getElementById('holYear').value = (state.ym ? state.ym.y : new Date().getFullYear());
+  renderSeasons(); renderRates(); renderOverrides(); renderHolidays();
+  setBg.classList.add('show');
+}
+
+function renderHolidays(){
+  const box=document.getElementById('holList'); box.innerHTML='';
+  const arr=(state._draft.holidays||[]).slice().sort();
+  if(!arr.length){ box.innerHTML='<div class="listempty">불러온 공휴일이 없습니다.</div>'; return; }
+  arr.forEach(h=>{
+    const chip=document.createElement('span'); chip.className='holchip';
+    chip.innerHTML='<span>'+h+'</span><button aria-label="삭제">×</button>';
+    chip.querySelector('button').onclick=()=>{ state._draft.holidays=state._draft.holidays.filter(x=>x!==h); renderHolidays(); };
+    box.appendChild(chip);
+  });
+}
+
+function renderSeasons(){
+  const box=document.getElementById('seasonList'); box.innerHTML='';
+  const arr=state._draft.seasons;
+  if(!arr.length){ box.innerHTML='<div class="listempty">아직 지정한 기간이 없습니다.</div>'; return; }
+  arr.forEach((s,i)=>{
+    const row=document.createElement('div'); row.className='srow';
+    row.innerHTML='<input class="date" type="date">'+
+                  '<span class="tilde">–</span>'+
+                  '<input class="date" type="date">'+
+                  '<select class="grow"><option value="준성수기">준성수기</option><option value="성수기">성수기</option></select>'+
+                  '<button class="del" aria-label="삭제">×</button>';
+    const ins=row.querySelectorAll('input'); ins[0].value=s.start||''; ins[1].value=s.end||'';
+    const sel=row.querySelector('select'); sel.value=s.type||'준성수기';
+    ins[0].onchange=()=>s.start=ins[0].value;
+    ins[1].onchange=()=>s.end=ins[1].value;
+    sel.onchange=()=>s.type=sel.value;
+    row.querySelector('.del').onclick=()=>{ arr.splice(i,1); renderSeasons(); };
+    box.appendChild(row);
+  });
+}
+
+function renderRates(){
+  const season=state._rateSeason||'평수기';
+  const box=document.getElementById('rateTable');
+  let html='<table class="ratetbl"><thead><tr><th>객실</th><th>평일</th><th>주말(금·토)</th></tr></thead><tbody>';
+  ROOM_LIST.forEach(room=>{
+    html+='<tr><td><span class="roomdot" style="background:var(--r-'+roomVar(room)+')"></span>'+room+'</td>'+
+          '<td><input data-room="'+room+'" data-k="weekday" inputmode="numeric" value="'+rateVal(room,season,'weekday')+'"></td>'+
+          '<td><input data-room="'+room+'" data-k="weekend" inputmode="numeric" value="'+rateVal(room,season,'weekend')+'"></td></tr>';
+  });
+  html+='</tbody></table>';
+  box.innerHTML=html;
+  box.querySelectorAll('input').forEach(inp=>{
+    inp.onchange=()=>{
+      const room=inp.dataset.room, k=inp.dataset.k; ensureRate(room);
+      state._draft.rates[room][season][k] = inp.value===''?'':(Number(inp.value)||0);
+    };
+  });
+}
+
+function renderOverrides(){
+  const box=document.getElementById('ovList'); box.innerHTML='';
+  const arr=state._draft.overrides;
+  if(!arr.length){ box.innerHTML='<div class="listempty">아직 없습니다.</div>'; return; }
+  const opts='<option value="">전체</option>'+ROOM_LIST.map(r=>'<option value="'+r+'">'+r+'</option>').join('');
+  arr.forEach((o,i)=>{
+    const row=document.createElement('div'); row.className='srow';
+    row.innerHTML='<input class="date" type="date">'+
+                  '<select class="grow">'+opts+'</select>'+
+                  '<input class="grow" inputmode="numeric" placeholder="요금">'+
+                  '<button class="del" aria-label="삭제">×</button>';
+    const ins=row.querySelectorAll('input'); const sel=row.querySelector('select');
+    ins[0].value=o.date||''; sel.value=o.room||''; ins[1].value=(o.rate===0||o.rate)?o.rate:'';
+    ins[0].onchange=()=>o.date=ins[0].value;
+    sel.onchange=()=>o.room=sel.value;
+    ins[1].onchange=()=>o.rate= ins[1].value===''?'':(Number(ins[1].value)||0);
+    row.querySelector('.del').onclick=()=>{ arr.splice(i,1); renderOverrides(); };
+    box.appendChild(row);
+  });
+}
+
+async function saveSettingsUI(){
+  state._draft.seasons  = state._draft.seasons.filter(s=>s.start&&s.end);
+  state._draft.overrides= state._draft.overrides.filter(o=>o.date&&o.rate!=='');
+  state._draft.holidays = Array.from(new Set(state._draft.holidays||[])).sort();
+  const btn=document.getElementById('setSave'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try{
+    await dataOp('saveSettings', {settings: state._draft});
+    state.settings = state._draft;
+    setBg.classList.remove('show');
+    toast('설정을 저장했습니다'); render();
+  }catch(e){ handleErr(e); }
+  finally{ btn.disabled=false; btn.textContent='설정 저장'; }
+}
+
+document.getElementById('settingsBtn').onclick = openSettings;
+document.getElementById('addSeason').onclick = ()=>{ state._draft.seasons.push({start:'',end:'',type:'준성수기'}); renderSeasons(); };
+document.getElementById('addOverride').onclick = ()=>{ state._draft.overrides.push({date:'',room:'',rate:''}); renderOverrides(); };
+document.getElementById('loadHol').onclick = async ()=>{
+  const y=parseInt(document.getElementById('holYear').value,10)||new Date().getFullYear();
+  const btn=document.getElementById('loadHol'); const old=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try{
+    const data=await dataOp('fetchHolidays',{year:y});
+    const merged=new Set([...(state._draft.holidays||[]), ...((data.holidays)||[])]);
+    state._draft.holidays=Array.from(merged).sort(); renderHolidays();
+    toast(((data.holidays||[]).length)+'개 불러왔습니다');
+  }catch(e){ handleErr(e); }
+  finally{ btn.disabled=false; btn.textContent=old; }
+};
+document.getElementById('addHol').onclick = ()=>{
+  const el=document.getElementById('holAddDate'); const v=el.value; if(!v) return;
+  const set=new Set(state._draft.holidays||[]); set.add(v);
+  state._draft.holidays=Array.from(set).sort(); el.value=''; renderHolidays();
+};
+document.querySelectorAll('#rateSeasonSeg button').forEach(b=>{
+  b.onclick=()=>{ document.querySelectorAll('#rateSeasonSeg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); state._rateSeason=b.dataset.s; renderRates(); };
+});
+document.getElementById('setCancel').onclick = ()=>setBg.classList.remove('show');
+document.getElementById('setSave').onclick = saveSettingsUI;
+setBg.addEventListener('click', e=>{ if(e.target===setBg) setBg.classList.remove('show'); });
+
+/* ---------- 토스트 ---------- */
+let toastTimer;
+function toast(msg, warn){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='show'+(warn?' warn':'');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.className='', 2200);
+}
+</script>
+</body>
+</html>
