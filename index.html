@@ -217,6 +217,9 @@
   .modal-actions{display:flex; gap:9px; margin-top:6px}
   .modal-actions button{flex:1; border-radius:11px; padding:13px; font-size:15px; font-weight:700; border:none}
   .btn-cancel{background:var(--card); border:1px solid var(--line-strong)!important; color:var(--ink-soft)}
+  .btn-del{flex:0 0 auto!important; background:var(--card); border:1px solid var(--warn)!important; color:var(--warn);
+    padding-left:18px; padding-right:18px}
+  .btn-del:hover{background:var(--warn-tint)}
   .btn-save{background:var(--sage); color:#fff}
   .btn-save:disabled{opacity:.5}
 
@@ -386,6 +389,7 @@
     </div>
 
     <div class="modal-actions">
+      <button class="btn-del" id="delBtn" style="display:none">삭제</button>
       <button class="btn-cancel" id="cancelBtn">닫기</button>
       <button class="btn-save" id="saveBtn">저장</button>
     </div>
@@ -457,6 +461,7 @@ const state = {
   statusFilter: 'active',   // 'active' | 'all' | '취소'
   view: 'cal',              // 'cal' | 'list'
   editRow: null,
+  editBooking: null,
   decoy: false,             // 비밀번호 틀림 → 가짜 화면 모드
   fakeRows: [],
   _fakeId: 100000,
@@ -969,6 +974,8 @@ function pickRoom(r){ F('roomPick').querySelectorAll('button').forEach(b=>b.clas
 
 function openForm(mode, r, presetDate, presetRoom){
   state.editRow = mode==='edit' ? r.row : null;
+  state.editBooking = mode==='edit' ? r : null;
+  document.getElementById('delBtn').style.display = mode==='edit' ? 'block' : 'none';
   F('modalTitle').textContent = mode==='edit' ? '예약 수정' : '새 예약';
   document.getElementById('roomLabel').textContent = mode==='edit' ? '객실' : '객실 (여러 개 선택 가능)';
   if(mode==='edit'){
@@ -1035,6 +1042,16 @@ function checkOverlapLive(){
 }
 
 document.getElementById('cancelBtn').onclick = ()=>modalBg.classList.remove('show');
+document.getElementById('delBtn').onclick = async ()=>{
+  const r=state.editBooking; if(!r) return;
+  if(!confirm(`삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n되돌릴 수 없습니다.`)) return;
+  const btn=document.getElementById('delBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
+  try{
+    await dataOp('delete', {row:r.row});
+    toast('삭제했습니다'); modalBg.classList.remove('show'); await reload();
+  }catch(e){ handleErr(e); }
+  finally{ btn.disabled=false; btn.textContent='삭제'; }
+};
 modalBg.addEventListener('click', e=>{ if(e.target===modalBg) modalBg.classList.remove('show'); });
 document.getElementById('addBtn').onclick = ()=>openForm('new');
 
