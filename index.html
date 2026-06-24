@@ -466,7 +466,8 @@ const state = {
   fakeRows: [],
   _fakeId: 100000,
   settings: null,           // 시즌/요금표/특정일 요금
-  _draft: null              // 설정 편집용 임시본
+  _draft: null,             // 설정 편집용 임시본
+  _tmpId: -1                // 즉시 반영용 임시 행번호
 };
 
 /* ---------- API ---------- */
@@ -1045,15 +1046,20 @@ document.getElementById('cancelBtn').onclick = ()=>modalBg.classList.remove('sho
 document.getElementById('delBtn').onclick = async ()=>{
   const r=state.editBooking; if(!r) return;
   if(!confirm(`삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n되돌릴 수 없습니다.`)) return;
-  const btn=document.getElementById('delBtn'); btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
-  try{
-    await dataOp('delete', {row:r.row});
-    toast('삭제했습니다'); modalBg.classList.remove('show'); await reload();
-  }catch(e){ handleErr(e); }
-  finally{ btn.disabled=false; btn.textContent='삭제'; }
+  modalBg.classList.remove('show');
+  state.rows = state.rows.filter(x=>x.row!==r.row); render(); toast('삭제했습니다');
+  try{ await dataOp('delete', {row:r.row}); reload(); }
+  catch(e){ handleErr(e); reload(); }
 };
 modalBg.addEventListener('click', e=>{ if(e.target===modalBg) modalBg.classList.remove('show'); });
 document.getElementById('addBtn').onclick = ()=>openForm('new');
+
+function rowFromPayload(p, rowNum, no){
+  const n = x => (x===''||x==null) ? '' : (isNaN(Number(x)) ? x : Number(x));
+  return { row:rowNum, no:(no==null?'':no), status:p.status||'확정', ci:p.ci, co:p.co, room:p.room,
+    name:p.name||'', tel:p.tel||'', ppl:p.ppl||'', route:p.route||'',
+    fee:n(p.fee), addfee:n(p.addfee), addnote:p.addnote||'', memo:p.memo||'' };
+}
 
 document.getElementById('saveBtn').onclick = async ()=>{
   const rooms=selectedRooms(), ci=F('fCi').value, co=F('fCo').value;
@@ -1070,23 +1076,28 @@ document.getElementById('saveBtn').onclick = async ()=>{
     addnote:F('fAddnote').value.trim(), memo:F('fMemo').value.trim(), status:F('fStatus').value
   };
   const feeInput = F('fFee').value.trim();
-  const btn=document.getElementById('saveBtn');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>';
-  try{
-    if(state.editRow){
-      const payload=Object.assign({}, common, {room:rooms[0], fee:feeInput, row:state.editRow});
-      await dataOp('update', payload); toast('수정했습니다');
-    } else {
-      for(const room of rooms){
-        const fee = feeInput!=='' ? feeInput : (stayTotal(room,ci,co)||'');
-        await dataOp('create', Object.assign({}, common, {room, fee}));
-      }
-      toast(rooms.length>1 ? rooms.length+'개 객실 등록했습니다' : '등록했습니다');
-    }
-    modalBg.classList.remove('show');
-    await reload();
-  }catch(e){ handleErr(e); }
-  finally{ btn.disabled=false; btn.textContent='저장'; }
+
+  if(state.editRow){
+    const payload=Object.assign({}, common, {room:rooms[0], fee:feeInput, row:state.editRow});
+    const idx=state.rows.findIndex(x=>x.row===state.editRow);
+    const prev = idx>=0 ? state.rows[idx] : null;
+    if(idx>=0) state.rows[idx]=rowFromPayload(payload, state.editRow, prev?prev.no:'');
+    modalBg.classList.remove('show'); render(); toast('수정했습니다');     // 즉시 반영
+    try{ await dataOp('update', payload); reload(); }
+    catch(e){ if(idx>=0&&prev){ state.rows[idx]=prev; render(); } handleErr(e); }
+  } else {
+    const payloads=[];
+    rooms.forEach(room=>{
+      const fee = feeInput!=='' ? feeInput : (stayTotal(room,ci,co)||'');
+      const pl=Object.assign({}, common, {room, fee});
+      payloads.push(pl);
+      state.rows.push(rowFromPayload(pl, state._tmpId--, ''));            // 임시행 즉시 추가
+    });
+    modalBg.classList.remove('show'); render();                          // 즉시 반영
+    toast(rooms.length>1 ? rooms.length+'개 객실 등록했습니다' : '등록했습니다');
+    try{ for(const pl of payloads){ await dataOp('create', pl); } reload(); }
+    catch(e){ handleErr(e); reload(); }
+  }
 };
 
 /* ---------- 빠른 메모 ---------- */
@@ -1094,20 +1105,25 @@ async function openMemo(r){
   const cur = r.memo || '';
   const v = prompt(`메모 — ${r.name||'(무명)'} (${r.room} ${fmtMd(r.ci)})`, cur);
   if(v===null || v===cur) return;
+  const idx=state.rows.findIndex(x=>x.row===r.row);
+  const prev = idx>=0 ? state.rows[idx] : null;
+  if(idx>=0) state.rows[idx]=Object.assign({}, prev, {memo:v});
+  render(); toast('메모를 저장했습니다');
   try{
     await dataOp('update', {
       row:r.row, room:r.room, ci:r.ci, co:r.co, name:r.name, tel:r.tel, ppl:r.ppl,
       route:r.route, fee:r.fee, addfee:r.addfee, addnote:r.addnote, memo:v, status:r.status
     });
-    toast('메모를 저장했습니다'); await reload();
-  }catch(e){ handleErr(e); }
+    reload();
+  }catch(e){ if(idx>=0&&prev){ state.rows[idx]=prev; render(); } handleErr(e); }
 }
 
 /* ---------- 삭제 ---------- */
 async function removeRow(r){
   if(!confirm(`삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n되돌릴 수 없습니다.`)) return;
-  try{ await dataOp('delete', {row:r.row}); toast('삭제했습니다'); await reload(); }
-  catch(e){ handleErr(e); }
+  state.rows = state.rows.filter(x=>x.row!==r.row); render(); toast('삭제했습니다');
+  try{ await dataOp('delete', {row:r.row}); reload(); }
+  catch(e){ handleErr(e); reload(); }
 }
 
 /* ---------- 설정 모달 ---------- */
