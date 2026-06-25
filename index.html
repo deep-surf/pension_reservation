@@ -132,6 +132,30 @@
   .viewseg button{flex:1; padding:9px 0; font-size:14px}
   .viewseg.seg{display:flex; width:100%}
 
+  /* ===== DB 뷰 ===== */
+  #db{display:none}
+  .db-bar{display:flex; align-items:center; gap:10px; padding:2px 2px 12px}
+  .db-bar input{flex:1; padding:10px 12px; border:1px solid var(--line-strong); border-radius:10px; background:var(--card); outline:none}
+  .db-bar input:focus{border-color:var(--sage)}
+  .db-bar .cnt{font-size:13px; color:var(--ink-soft); white-space:nowrap}
+  .db-scroll{overflow-x:auto; border:1px solid var(--line-strong); border-radius:10px; -webkit-overflow-scrolling:touch}
+  .db-tbl{border-collapse:collapse; white-space:nowrap; font-size:12px; min-width:100%}
+  .db-tbl th,.db-tbl td{padding:8px 10px; border-bottom:1px solid var(--line); text-align:left}
+  .db-tbl thead th{position:sticky; top:0; background:var(--sage-tint); color:var(--sage-deep);
+    font-weight:700; font-size:11px; border-bottom:1px solid var(--line-strong)}
+  .db-tbl tbody tr{cursor:pointer}
+  .db-tbl tbody tr:hover{background:var(--sage-tint)}
+  .db-tbl td.num{text-align:right; font-variant-numeric:tabular-nums}
+  .db-tbl .st{font-weight:700; font-size:11px; padding:1px 7px; border-radius:5px}
+  .db-tbl .st.확정{background:#e7efe4; color:var(--sage-deep)}
+  .db-tbl .st.대기{background:#fbf3df; color:var(--hold)}
+  .db-tbl .st.취소{background:#efefea; color:var(--cancel)}
+  .db-tbl tr.cancelled td{color:var(--cancel)}
+  .db-tbl tr.cancelled .nm{text-decoration:line-through}
+  .db-tbl .rm{font-weight:700}
+  .db-empty{text-align:center; color:var(--cancel); padding:32px; font-size:14px}
+
+
   /* ===== 달력 뷰 (객실 격자) ===== */
   #cal{display:none}
   .cal-legend{display:flex; flex-wrap:wrap; gap:9px 14px; padding:2px 2px 12px; font-size:12px; color:var(--ink-soft)}
@@ -192,6 +216,11 @@
     box-shadow:0 -10px 40px -12px rgba(0,0,0,.3)}
   @media(min-width:560px){ .modal-bg{align-items:center} .modal{border-radius:18px} }
   .modal h2{margin:2px 0 14px; font-size:19px; letter-spacing:-.01em}
+  .modal-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:2px 0 14px}
+  .modal-head h2{margin:0}
+  .trash-btn{border:1px solid var(--line-strong); background:var(--card); color:var(--cancel);
+    border-radius:9px; width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center; padding:0}
+  .trash-btn:hover{border-color:var(--warn); color:var(--warn); background:var(--warn-tint)}
   .field{margin-bottom:12px}
   .field label{display:block; font-size:13px; font-weight:600; color:var(--ink-soft); margin-bottom:5px}
   .field input,.field select,.field textarea{width:100%; padding:11px 12px; border:1px solid var(--line-strong);
@@ -328,6 +357,7 @@
     <div class="seg viewseg" id="viewSeg">
       <button data-v="cal" class="on">달력</button>
       <button data-v="list">목록</button>
+      <button data-v="db">DB</button>
     </div>
     <div class="filters" id="roomFilters"></div>
     <div class="filters">
@@ -340,13 +370,18 @@
     <button class="addbtn" id="addBtn">＋ 새 예약 등록</button>
   </div>
 
-  <main><div id="cal"></div><div id="list"></div></main>
+  <main><div id="cal"></div><div id="list"></div><div id="db"></div></main>
 </div>
 
 <!-- 등록/수정 모달 -->
 <div class="modal-bg" id="modalBg">
   <div class="modal" role="dialog" aria-modal="true">
-    <h2 id="modalTitle">새 예약</h2>
+    <div class="modal-head">
+      <h2 id="modalTitle">새 예약</h2>
+      <button class="trash-btn" id="hardDelBtn" title="완전 삭제 (DB에서 줄을 지움)" style="display:none">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/><path d="M10 11v6M14 11v6"/></svg>
+      </button>
+    </div>
 
     <div class="field">
       <label id="roomLabel">객실</label>
@@ -389,7 +424,7 @@
     </div>
 
     <div class="modal-actions">
-      <button class="btn-del" id="delBtn" style="display:none">삭제</button>
+      <button class="btn-del" id="delBtn" style="display:none">예약 취소</button>
       <button class="btn-cancel" id="cancelBtn">닫기</button>
       <button class="btn-save" id="saveBtn">저장</button>
     </div>
@@ -445,7 +480,7 @@
 <script>
 /* ====================================================================== */
 /*  ↓↓↓  여기에 배포한 Apps Script 웹앱의 /exec 주소를 넣으세요  ↓↓↓        */
-const API_URL = "https://script.google.com/macros/s/AKfycbw3tfa4tKCr6_g2RmhDkwexIFZ3fKwJprDTxGqCD3NlBeb1HCu3tlOM1xmVO_qTOdLA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx50dCzJy-uB436iRUVpLn0-GGaEyT2C0DDQwY7_qV9OvOa_sUJXR4YKPX2RYi4Ju_Y/exec";
 /* ====================================================================== */
 
 const ROOM_LIST = ['민들레','봉숭아','채송화','수선화'];
@@ -467,7 +502,8 @@ const state = {
   _fakeId: 100000,
   settings: null,           // 시즌/요금표/특정일 요금
   _draft: null,             // 설정 편집용 임시본
-  _tmpId: -1                // 즉시 반영용 임시 행번호
+  _tmpId: -1,               // 즉시 반영용 임시 행번호
+  dbQuery: ''               // DB 뷰 검색어
 };
 
 /* ---------- API ---------- */
@@ -503,7 +539,8 @@ function decoyOp(action, payload){
     case 'list':   return { ok:true, rows: state.fakeRows.slice(), rooms:ROOM_LIST, routes:state.routes, statuses:state.statuses, settings: state.settings || defaultSettings() };
     case 'create': { const id=state._fakeId++; state.fakeRows.push(Object.assign({row:id, no:id}, pickPayload(payload))); return {ok:true, row:id, no:id}; }
     case 'update': { const r=state.fakeRows.find(x=>x.row===payload.row); if(r) Object.assign(r, pickPayload(payload)); return {ok:true}; }
-    case 'delete': { state.fakeRows = state.fakeRows.filter(x=>x.row!==payload.row); return {ok:true}; }
+    case 'delete': { const r=state.fakeRows.find(x=>x.row===payload.row); if(r) r.status='취소'; return {ok:true}; }
+    case 'remove': { state.fakeRows = state.fakeRows.filter(x=>x.row!==payload.row); return {ok:true}; }
     case 'saveSettings': { state.settings = payload.settings || payload; return {ok:true}; }
     case 'fetchHolidays': return { ok:true, holidays:['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-01','2026-03-02','2026-05-05','2026-05-24','2026-06-06','2026-08-15','2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05','2026-10-09','2026-12-25'] };
   }
@@ -754,9 +791,77 @@ function passFilter(r){
 
 function render(){
   document.getElementById('mLabel').textContent = state.ym.y + '년 ' + state.ym.m + '월';
-  const listEl=document.getElementById('list'), calEl=document.getElementById('cal');
-  if(state.view==='cal'){ listEl.style.display='none'; calEl.style.display='block'; renderCalendar(); }
-  else { calEl.style.display='none'; listEl.style.display='block'; renderList(); }
+  const calEl=document.getElementById('cal'), listEl=document.getElementById('list'), dbEl=document.getElementById('db');
+  const isDB = state.view==='db';
+  // DB 뷰에서는 월 이동·필터 숨김 (전체를 보여주므로)
+  document.querySelector('.monthnav').style.display = isDB?'none':'flex';
+  document.getElementById('roomFilters').style.display = isDB?'none':'flex';
+  document.getElementById('statusSeg').parentElement.style.display = isDB?'none':'flex';
+
+  calEl.style.display  = state.view==='cal' ? 'block':'none';
+  listEl.style.display = state.view==='list'? 'block':'none';
+  dbEl.style.display   = isDB ? 'block':'none';
+
+  if(state.view==='cal') renderCalendar();
+  else if(state.view==='list') renderList();
+  else renderDB();
+}
+
+function renderDB(){
+  const db=document.getElementById('db');
+  if(!db.dataset.init){
+    db.innerHTML =
+      '<div class="db-bar"><input id="dbSearch" placeholder="이름·연락처·객실 검색"><span class="cnt" id="dbCount"></span></div>'+
+      '<div class="db-scroll"><table class="db-tbl"><thead><tr>'+
+      '<th>No</th><th>상태</th><th>체크인</th><th>체크아웃</th><th>객실</th><th>고객명</th><th>연락처</th>'+
+      '<th>인원</th><th>경로</th><th>요금</th><th>추가</th><th>추가내용</th><th>메모</th><th>등록일시</th>'+
+      '</tr></thead><tbody id="dbBody"></tbody></table></div>';
+    db.dataset.init='1';
+    document.getElementById('dbSearch').oninput=(e)=>{ state.dbQuery=e.target.value; renderDBBody(); };
+  }
+  document.getElementById('dbSearch').value = state.dbQuery||'';
+  renderDBBody();
+}
+
+function renderDBBody(){
+  const q=(state.dbQuery||'').trim().toLowerCase();
+  let rows=state.rows.slice();
+  if(q) rows=rows.filter(r=>
+    (r.name||'').toLowerCase().includes(q) || (r.tel||'').toLowerCase().includes(q) || (r.room||'').includes(q) || (r.no+'').includes(q));
+  const noNum = r => { const n=parseInt(r.no,10); return isNaN(n)?Infinity:n; }; // 방금 등록(번호 미정)은 맨 위
+  rows.sort((a,b)=> noNum(b)-noNum(a)); // No 큰 순서대로 (최근이 위, 1번이 아래)
+
+  document.getElementById('dbCount').textContent = rows.length+'건';
+  const body=document.getElementById('dbBody');
+  if(!rows.length){ body.innerHTML='<tr><td colspan="14"><div class="db-empty">예약이 없습니다</div></td></tr>'; return; }
+
+  body.innerHTML = rows.map(r=>{
+    const cancelled = r.status==='취소';
+    const feeT = r.fee!=='' ? Number(r.fee).toLocaleString('ko-KR') : '';
+    const addT = (r.addfee!=='' && Number(r.addfee)!==0) ? Number(r.addfee).toLocaleString('ko-KR') : '';
+    return `<tr class="${cancelled?'cancelled':''}" data-row="${r.row}">`+
+      `<td class="num">${esc(String(r.no==null?'':r.no))}</td>`+
+      `<td><span class="st ${esc(r.status||'')}">${esc(r.status||'')}</span></td>`+
+      `<td>${esc(r.ci)}</td><td>${esc(r.co)}</td>`+
+      `<td class="rm">${esc(r.room)}</td>`+
+      `<td class="nm">${esc(r.name||'')}</td>`+
+      `<td>${esc(r.tel||'')}</td>`+
+      `<td class="num">${esc(String(r.ppl||''))}</td>`+
+      `<td>${esc(r.route||'')}</td>`+
+      `<td class="num">${esc(feeT)}</td>`+
+      `<td class="num">${esc(addT)}</td>`+
+      `<td>${esc(r.addnote||'')}</td>`+
+      `<td>${esc(r.memo||'')}</td>`+
+      `<td>${esc(r.created||'')}</td>`+
+      `</tr>`;
+  }).join('');
+
+  body.querySelectorAll('tr[data-row]').forEach(tr=>{
+    tr.onclick=()=>{
+      const r=state.rows.find(x=>x.row===Number(tr.dataset.row));
+      if(r) openForm('edit', r);
+    };
+  });
 }
 
 function renderList(){
@@ -940,7 +1045,7 @@ function card(r){
     <div class="r-actions">
       <button data-act="memo">메모</button>
       <button data-act="edit">수정</button>
-      <button data-act="del" class="del">삭제</button>
+      <button data-act="del" class="del">취소</button>
     </div>`;
 
   el.querySelector('[data-act="edit"]').onclick = ()=>openForm('edit', r);
@@ -977,6 +1082,7 @@ function openForm(mode, r, presetDate, presetRoom){
   state.editRow = mode==='edit' ? r.row : null;
   state.editBooking = mode==='edit' ? r : null;
   document.getElementById('delBtn').style.display = mode==='edit' ? 'block' : 'none';
+  document.getElementById('hardDelBtn').style.display = mode==='edit' ? 'flex' : 'none';
   F('modalTitle').textContent = mode==='edit' ? '예약 수정' : '새 예약';
   document.getElementById('roomLabel').textContent = mode==='edit' ? '객실' : '객실 (여러 개 선택 가능)';
   if(mode==='edit'){
@@ -1043,23 +1149,31 @@ function checkOverlapLive(){
 }
 
 document.getElementById('cancelBtn').onclick = ()=>modalBg.classList.remove('show');
-document.getElementById('delBtn').onclick = async ()=>{
+document.getElementById('delBtn').onclick = ()=>{
   const r=state.editBooking; if(!r) return;
-  if(!confirm(`삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n되돌릴 수 없습니다.`)) return;
+  if(!confirm(`이 예약을 취소 처리할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n예약DB에 상태가 '취소'로 남습니다.`)) return;
   modalBg.classList.remove('show');
-  state.rows = state.rows.filter(x=>x.row!==r.row); render(); toast('삭제했습니다');
-  try{ await dataOp('delete', {row:r.row}); reload(); }
-  catch(e){ handleErr(e); reload(); }
+  cancelBooking(r);
+};
+document.getElementById('hardDelBtn').onclick = ()=>{
+  const r=state.editBooking; if(!r) return;
+  if(!confirm(`완전히 삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n예약DB에서 줄이 완전히 사라집니다. 되돌릴 수 없습니다.\n(기록을 남기려면 '예약 취소'를 쓰세요.)`)) return;
+  modalBg.classList.remove('show');
+  hardDelete(r);
 };
 modalBg.addEventListener('click', e=>{ if(e.target===modalBg) modalBg.classList.remove('show'); });
 document.getElementById('addBtn').onclick = ()=>openForm('new');
 
-function rowFromPayload(p, rowNum, no){
+function nowStr(){ const d=new Date(), p=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+function rowFromPayload(p, rowNum, no, created){
   const n = x => (x===''||x==null) ? '' : (isNaN(Number(x)) ? x : Number(x));
   return { row:rowNum, no:(no==null?'':no), status:p.status||'확정', ci:p.ci, co:p.co, room:p.room,
     name:p.name||'', tel:p.tel||'', ppl:p.ppl||'', route:p.route||'',
-    fee:n(p.fee), addfee:n(p.addfee), addnote:p.addnote||'', memo:p.memo||'' };
+    fee:n(p.fee), addfee:n(p.addfee), addnote:p.addnote||'', memo:p.memo||'', created:created||'' };
 }
+
+async function ensureRealRow(r){ if(r && r._pending){ try{ await r._pending; }catch(_){} } }
 
 document.getElementById('saveBtn').onclick = async ()=>{
   const rooms=selectedRooms(), ci=F('fCi').value, co=F('fCo').value;
@@ -1078,25 +1192,32 @@ document.getElementById('saveBtn').onclick = async ()=>{
   const feeInput = F('fFee').value.trim();
 
   if(state.editRow){
-    const payload=Object.assign({}, common, {room:rooms[0], fee:feeInput, row:state.editRow});
-    const idx=state.rows.findIndex(x=>x.row===state.editRow);
-    const prev = idx>=0 ? state.rows[idx] : null;
-    if(idx>=0) state.rows[idx]=rowFromPayload(payload, state.editRow, prev?prev.no:'');
-    modalBg.classList.remove('show'); render(); toast('수정했습니다');     // 즉시 반영
-    try{ await dataOp('update', payload); reload(); }
-    catch(e){ if(idx>=0&&prev){ state.rows[idx]=prev; render(); } handleErr(e); }
+    const obj=state.editBooking;
+    const payload=Object.assign({}, common, {room:rooms[0], fee:feeInput});
+    const before=Object.assign({}, obj);                                   // 롤백용
+    Object.assign(obj, rowFromPayload(payload, obj.row, obj.no, obj.created));
+    modalBg.classList.remove('show'); render(); toast('수정했습니다');       // 즉시 반영
+    try{
+      await ensureRealRow(obj);                                            // 방금 등록한 건이면 등록완료 대기
+      if(!(obj.row>0)) throw new Error('아직 저장 중입니다. 잠시 후 다시 시도하세요.');
+      payload.row=obj.row;
+      await dataOp('update', payload); reload();
+    }catch(e){ Object.assign(obj, before); render(); handleErr(e); }
   } else {
-    const payloads=[];
+    const ros=[], proms=[];
     rooms.forEach(room=>{
       const fee = feeInput!=='' ? feeInput : (stayTotal(room,ci,co)||'');
       const pl=Object.assign({}, common, {room, fee});
-      payloads.push(pl);
-      state.rows.push(rowFromPayload(pl, state._tmpId--, ''));            // 임시행 즉시 추가
+      const ro=rowFromPayload(pl, state._tmpId--, '', nowStr());          // 임시 행번호(음수)
+      ro._pending = dataOp('create', pl).then(
+        res=>{ if(res&&res.row){ ro.row=res.row; ro.no=(res.no==null?ro.no:res.no); } ro._pending=null; return ro.row; },
+        err=>{ ro._pending=null; ro._err=err; }
+      );
+      state.rows.push(ro); ros.push(ro); proms.push(ro._pending);
     });
     modalBg.classList.remove('show'); render();                          // 즉시 반영
     toast(rooms.length>1 ? rooms.length+'개 객실 등록했습니다' : '등록했습니다');
-    try{ for(const pl of payloads){ await dataOp('create', pl); } reload(); }
-    catch(e){ handleErr(e); reload(); }
+    Promise.allSettled(proms).then(()=>{ if(ros.some(r=>r._err)) toast('일부 저장 실패 — 새로고침으로 확인하세요', true); reload(); });
   }
 };
 
@@ -1105,24 +1226,41 @@ async function openMemo(r){
   const cur = r.memo || '';
   const v = prompt(`메모 — ${r.name||'(무명)'} (${r.room} ${fmtMd(r.ci)})`, cur);
   if(v===null || v===cur) return;
-  const idx=state.rows.findIndex(x=>x.row===r.row);
-  const prev = idx>=0 ? state.rows[idx] : null;
-  if(idx>=0) state.rows[idx]=Object.assign({}, prev, {memo:v});
-  render(); toast('메모를 저장했습니다');
+  const before=r.memo; r.memo=v; render(); toast('메모를 저장했습니다');
   try{
+    await ensureRealRow(r);
+    if(!(r.row>0)) throw new Error('아직 저장 중입니다. 잠시 후 다시 시도하세요.');
     await dataOp('update', {
       row:r.row, room:r.room, ci:r.ci, co:r.co, name:r.name, tel:r.tel, ppl:r.ppl,
       route:r.route, fee:r.fee, addfee:r.addfee, addnote:r.addnote, memo:v, status:r.status
     });
     reload();
-  }catch(e){ if(idx>=0&&prev){ state.rows[idx]=prev; render(); } handleErr(e); }
+  }catch(e){ r.memo=before; render(); handleErr(e); }
 }
 
-/* ---------- 삭제 ---------- */
-async function removeRow(r){
-  if(!confirm(`삭제할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n되돌릴 수 없습니다.`)) return;
-  state.rows = state.rows.filter(x=>x.row!==r.row); render(); toast('삭제했습니다');
+/* ---------- 취소 처리(삭제) ---------- */
+async function cancelBooking(r){
+  await ensureRealRow(r);                                  // 방금 등록한 건이면 등록완료 대기
+  if(!(r.row>0)){                                          // 서버에 아직 없음(등록 실패 등) → 로컬만 정리
+    const i=state.rows.indexOf(r); if(i>=0) state.rows.splice(i,1);
+    render(); toast('취소했습니다'); return;
+  }
+  const before=r.status; r.status='취소'; render(); toast('취소 처리했습니다');
   try{ await dataOp('delete', {row:r.row}); reload(); }
+  catch(e){ r.status=before; render(); handleErr(e); }
+}
+async function removeRow(r){
+  if(!confirm(`이 예약을 취소 처리할까요?\n\n${r.room} · ${r.name||'(무명)'} · ${fmtMd(r.ci)}~${fmtMd(r.co)}\n\n예약DB에 상태가 '취소'로 남습니다.`)) return;
+  cancelBooking(r);
+}
+
+/* ---------- 완전 삭제 (휴지통) ---------- */
+async function hardDelete(r){
+  await ensureRealRow(r);
+  const i=state.rows.indexOf(r); if(i>=0) state.rows.splice(i,1);
+  render(); toast('삭제했습니다');
+  if(!(r.row>0)) return;                                   // 서버에 아직 없으면 로컬 제거로 충분
+  try{ await dataOp('remove', {row:r.row}); reload(); }
   catch(e){ handleErr(e); reload(); }
 }
 
